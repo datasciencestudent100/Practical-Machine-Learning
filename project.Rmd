@@ -1,0 +1,158 @@
+---
+title: Predicting activity performance with accelerometer data
+author: "datasciencestudent100"
+date: "Tuesday, August 19, 2014"
+output: html_document
+---
+
+Summary
+
+With today's wearable devices, we are able to collect a large amount of data about personal activity. In this project, We will use the data provided from accelerometers on the belt, forearm, arm, and dumbell of 6 participants to predict how well they perform their activity. 
+
+More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+
+Load training data
+
+```{r,echo=TRUE}
+
+fileUrl <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+download.file(fileUrl, destfile = "pml-training.cs")
+
+temp <- read.csv("pml-training.cs",header = TRUE)
+
+```
+
+
+Identify and filter out non-numeric columns 
+
+```{r}
+numIndex <- sapply(temp, is.numeric)
+temp2<-temp[,numIndex]
+
+````
+
+Include only accelerometer variables and exclude statistic variables.
+
+```{r,echo=TRUE}
+
+# Identify the variables using grep
+
+acce_str <- grep("acce", colnames(temp2), value = TRUE)
+total_str <- grep("total", colnames(temp2), value = TRUE)
+var_str <- grep("var", colnames(temp2), value = TRUE)
+
+# Including variables
+
+temp2<-subset(temp2, select= names(temp2)[which(names(temp2) %in% acce_str)])
+
+# Excludding variables
+
+temp2<-subset(temp2, select= names(temp2)[-which(names(temp2) %in% total_str)])
+temp2<-subset(temp2, select= names(temp2)[-which(names(temp2) %in% var_str)])
+
+```
+
+
+Process the training data by adding "classe" column 
+
+```{r,echo=TRUE}
+
+TrainDF <-data.frame(temp$classe,temp2)
+names(TrainDF)[1] <- "classe"
+
+```
+
+Load caret library and get the subset for the training data
+
+```{r,echo=TRUE} 
+
+library(ggplot2); 
+library(caret);  
+
+TrainIndex <- createDataPartition(TrainDF$classe, p=0.1, list = FALSE)
+subsetTrainDF <- TrainDF[TrainIndex,]
+
+table(subsetTrainDF$classe)
+
+```
+
+Generate a model for the performance type using random forests method
+
+```{r,echo=TRUE}
+
+trainPar <- trainControl(allowParallel = TRUE, method = "cv", number = 5);
+modelFit <- train(classe ~ ., data =subsetTrainDF, method="rf",
+                  trainControl = trainPar, importance=TRUE);
+```
+
+Variables importance with the plot
+
+```{r,echo=TRUE}
+varImportance <- varImp(modelFit)
+
+varImportance[[1]][1:12,]
+              
+plot(varImportance)
+
+```
+
+Get the subset for the test from training data
+
+```{r,echo=TRUE}
+
+subsetTesting <- TrainDF[-TrainIndex,];
+                                         
+subsetTesting <- subsetTesting[sample(1:nrow(subsetTesting), 1000),];
+```
+
+Cross-Validation
+
+```{r}
+errorMeasure <- confusionMatrix(subsetTesting$classe, predict(modelFit,subsetTesting));
+errorMeasure
+```
+
+Load the real test data 
+
+```{r,echo=TRUE}
+fileUrl <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+download.file(fileUrl, destfile = "pml-testing.cs")
+
+test <- read.csv("pml-training.cs",header = TRUE)
+
+```
+
+
+Subset the real test Data
+
+```{r,echo=TRUE}
+
+TestDF <- subset(test, 
+                 select = c(names(test)[which(names(test) %in% names(TrainDF))])
+                 )
+````
+
+
+Random sampling 20 cases from the real test data
+
+```{r,echo=TRUE}
+
+sampleTest <- TestDF[sample(1:nrow(TestDF), 20,
+   replace=FALSE),] 
+
+```
+
+Predict the sample test data
+
+```{r,echo=TRUE}
+
+pred <- predict(modelFit,sampleTest); 
+
+sampleTest$predRight <- (pred == sampleTest$classe)
+
+table(pred,sampleTest$classe)
+
+```
+
+
