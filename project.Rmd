@@ -111,6 +111,7 @@ Cross-Validation
 ```{r}
 errorMeasure <- confusionMatrix(subsetTesting$classe, predict(modelFit,subsetTesting));
 errorMeasure
+
 ```
 
 Load the real test data 
@@ -119,7 +120,7 @@ Load the real test data
 fileUrl <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
 download.file(fileUrl, destfile = "pml-testing.cs")
 
-test <- read.csv("pml-training.cs",header = TRUE)
+test <- read.csv("pml-testing.cs",header = TRUE)
 
 ```
 
@@ -134,24 +135,13 @@ TestDF <- subset(test,
 ````
 
 
-Random sampling 20 cases from the real test data
+Predict the real sample test data
 
 ```{r,echo=TRUE}
 
-sampleTest <- TestDF[sample(1:nrow(TestDF), 20,
-   replace=FALSE),] 
+answers  <- predict(modelFit,TestDF); 
 
-```
-
-Predict the sample test data
-
-```{r,echo=TRUE}
-
-pred <- predict(modelFit,sampleTest); 
-
-sampleTest$predRight <- (pred == sampleTest$classe)
-
-table(pred,sampleTest$classe)
+answers 
 
 ```
 
